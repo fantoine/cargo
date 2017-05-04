@@ -69,31 +69,29 @@ fn _process(t: &OsStr) -> cargo::util::ProcessBuilder {
 
     // We'll need dynamic libraries at some point in this test suite, so ensure
     // that the rustc libdir is somewhere in LD_LIBRARY_PATH as appropriate.
-    // Note that this isn't needed on Windows as we assume the bindir (with
-    // dlls) is in PATH.
-    if cfg!(unix) {
-        let var = if cfg!(target_os = "macos") {
-            "DYLD_LIBRARY_PATH"
-        } else {
-            "LD_LIBRARY_PATH"
-        };
-        let rustc = RUSTC.with(|r| r.path.clone());
-        let path = env::var_os("PATH").unwrap_or(Default::default());
-        let rustc = env::split_paths(&path)
-                        .map(|p| p.join(&rustc))
-                        .find(|p| p.exists())
-                        .unwrap();
-        let mut libdir = rustc.clone();
-        libdir.pop();
-        libdir.pop();
-        libdir.push("lib");
-        let prev = env::var_os(&var).unwrap_or(Default::default());
-        let mut paths = env::split_paths(&prev).collect::<Vec<_>>();
-        println!("libdir: {:?}", libdir);
-        if !paths.contains(&libdir) {
-            paths.push(libdir);
-            p.env(var, env::join_paths(&paths).unwrap());
-        }
+    let var = if cfg!(target_os = "macos") {
+        "DYLD_LIBRARY_PATH"
+    } else if cfg!(windows) {
+        "PATH"
+    } else {
+        "LD_LIBRARY_PATH"
+    };
+    let rustc = RUSTC.with(|r| r.path.clone());
+    let path = env::var_os("PATH").unwrap_or(Default::default());
+    let rustc = env::split_paths(&path)
+                    .map(|p| p.join(&rustc))
+                    .find(|p| p.exists())
+                    .unwrap();
+    let mut libdir = rustc.clone();
+    libdir.pop();
+    libdir.pop();
+    libdir.push("lib");
+    let prev = env::var_os(&var).unwrap_or(Default::default());
+    let mut paths = env::split_paths(&prev).collect::<Vec<_>>();
+    println!("libdir: {:?}", libdir);
+    if !paths.contains(&libdir) {
+        paths.push(libdir);
+        p.env(var, env::join_paths(&paths).unwrap());
     }
     return p
 }
